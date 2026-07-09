@@ -35,29 +35,56 @@ subprojects {
             compileSdk = 36
             buildToolsVersion = "36.0.0"
             ndkVersion = "29.0.14206865"
-            
             signingConfigs {
                 create("frb-project") {
                     val storeFilePath = localProperties.getProperty("signing.storeFile")
-                    val kFile = storeFilePath?.let { file(it) }
-                    
-                    if (kFile != null && kFile.exists()) {
-                        // 1. Use your personal upload keystore if local.properties has configured it
-                        storeFile = kFile
+                    val configuredStoreFile = if (!storeFilePath.isNullOrBlank()) file(storeFilePath) else null
+
+                    if (configuredStoreFile != null && configuredStoreFile.exists()) {
+                        storeFile = configuredStoreFile
                         storePassword = localProperties.getProperty("signing.storePassword")
                         keyAlias = localProperties.getProperty("signing.keyAlias")
                         keyPassword = localProperties.getProperty("signing.keyPassword")
                     } else {
-                        // 2. Fallback to standard debug signature on clean environments and GitHub Actions
-                        val debugConfig = getByName("debug")
-                        storeFile = debugConfig.storeFile
-                        storePassword = debugConfig.storePassword
-                        keyAlias = debugConfig.keyAlias
-                        keyPassword = debugConfig.keyPassword
+                        // FALLBACK: Auto-generate a valid keystore in the project root if missing
+                        val fallbackKeystore = rootProject.file("debug.keystore")
+                        if (!fallbackKeystore.exists()) {
+                            try {
+                                val pb = ProcessBuilder(
+                                    "keytool", "-genkey", "-v",
+                                    "-keystore", fallbackKeystore.absolutePath,
+                                    "-storepass", "android",
+                                    "-alias", "androiddebugkey",
+                                    "-keypass", "android",
+                                    "-keyalg", "RSA",
+                                    "-keysize", "2048",
+                                    "-validity", "10000",
+                                    "-dname", "CN=Android Debug,O=Android,C=US"
+                                )
+                                pb.inheritIO()
+                                val process = pb.start()
+                                process.waitFor()
+                            } catch (e: Exception) {
+                                println("Warning: Failed to generate fallback keystore: ${e.message}")
+                            }
+                        }
+
+                        if (fallbackKeystore.exists()) {
+                            storeFile = fallbackKeystore
+                            storePassword = "android"
+                            keyAlias = "androiddebugkey"
+                            keyPassword = "android"
+                        } else {
+                            // Last resort fallback
+                            val debugConfig = this@signingConfigs.getByName("debug")
+                            storeFile = debugConfig.storeFile
+                            storePassword = debugConfig.storePassword
+                            keyAlias = debugConfig.keyAlias
+                            keyPassword = debugConfig.keyPassword
+                        }
                     }
                 }
             }
-            
             defaultConfig {
                 minSdk = 26
                 targetSdk = 36
