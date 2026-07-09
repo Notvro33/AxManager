@@ -35,15 +35,30 @@ subprojects {
             compileSdk = 36
             buildToolsVersion = "36.0.0"
             ndkVersion = "29.0.14206865"
+            
             signingConfigs {
+                val debugConfig = getByName("debug")
                 create("frb-project") {
-                    storeFile =
-                        localProperties.getProperty("signing.storeFile")?.let { file(it) }
-                    storePassword = localProperties.getProperty("signing.storePassword")
-                    keyAlias = localProperties.getProperty("signing.keyAlias")
-                    keyPassword = localProperties.getProperty("signing.keyPassword")
+                    val storeFilePath = localProperties.getProperty("signing.storeFile")
+                    val storeFileObj = storeFilePath?.let { file(it) }
+                    
+                    if (storeFileObj != null && storeFileObj.exists()) {
+                        // Use your personal keystore when compiling locally
+                        storeFile = storeFileObj
+                        storePassword = localProperties.getProperty("signing.storePassword")
+                        keyAlias = localProperties.getProperty("signing.keyAlias")
+                        keyPassword = localProperties.getProperty("signing.keyPassword")
+                    } else {
+                        // FALLBACK: If your personal keystore is missing (like on GitHub Actions),
+                        // use the standard default debug signature so the build succeeds!
+                        storeFile = debugConfig.storeFile
+                        storePassword = debugConfig.storePassword
+                        keyAlias = debugConfig.keyAlias
+                        keyPassword = debugConfig.keyPassword
+                    }
                 }
             }
+            
             defaultConfig {
                 minSdk = 26
                 targetSdk = 36
@@ -53,7 +68,6 @@ subprojects {
             packaging {
                 jniLibs {
                     useLegacyPackaging = true
-//                    excludes += "**/libapplovin-native-crash-reporter.so"
                 }
                 dex {
                     useLegacyPackaging = true
@@ -90,4 +104,3 @@ subprojects {
         }
     }
 }
-
