@@ -26,13 +26,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build release APK
-        run: ./gradlew :manager:assembleRelease
+        run: ./gradlew :app:assembleRelease
 
       - name: Build debug APK
-        run: ./gradlew :manager:assembleDebug
+        run: ./gradlew :app:assembleDebug
 
       - name: Upload APK to artifacts
         uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: manager/build/outputs/apk/
+          path: app/build/outputs/apk/
